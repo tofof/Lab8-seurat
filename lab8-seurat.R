@@ -53,8 +53,8 @@ genesPerCell_sd <- Matrix::colSums(seuratData@assays$RNA@counts)
 plot(sort(genesPerCell_sd), log='y', xlab='Cell', ylab='Complexity', main='Genes per Cell (ordered, cells > 3, genes > 350)')
 
 
-# QUALITY CONTROL
-#-----------------
+# QUALITY CONTROL & NORMALIZATION
+#---------------------------------
 
 # The % of UMI mapping to MT-genes is a common scRNA-seq QC metric.
 # The number of genes and UMIs (nGene and nUMI) are automatically calculated
@@ -101,8 +101,8 @@ plotMTpercentVsUMIs + plotGenesVsUMIs
 seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 10000) # defaults
 
 
-# FEATURE SELECTION
-#-------------------
+# VARIABLE FEATURE SELECTION
+#----------------------------
 # sets identity information
 
 seuratData <- FindVariableFeatures(seuratData, selection.method = "vst",
