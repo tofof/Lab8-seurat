@@ -1,7 +1,7 @@
 # scRNA-seq Data Processing Exploration
 
 Following tutorials at
-   * https://broadinstitute.github.io/2020_scWorkshop/data-wrangling-scrnaseq.html#examine-contents-of-seurat-object
+   * https://broadinstitute.github.io/2020_scWorkshop/data-wrangling-scrnaseq.html
    * https://broadinstitute.github.io/KrumlovSingleCellWorkshop2020/data-wrangling-scrnaseq-1.html
    * https://satijalab.org/seurat/archive/v3.0/pbmc3k_tutorial.html
 
