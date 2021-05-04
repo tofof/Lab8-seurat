@@ -7,7 +7,7 @@ library(patchwork)
 # PREAMBLE
 #----------
 # Following tutorials at
-#   https://broadinstitute.github.io/2020_scWorkshop/data-wrangling-scrnaseq.html#examine-contents-of-seurat-object
+#   https://broadinstitute.github.io/2020_scWorkshop/data-wrangling-scrnaseq.html
 #   https://broadinstitute.github.io/KrumlovSingleCellWorkshop2020/data-wrangling-scrnaseq-1.html
 #   https://satijalab.org/seurat/archive/v3.0/pbmc3k_tutorial.html
 # Public dataset of Non-Small Cell Lung Cancer Cells (NSCLC) freely available from 10X Genomics
@@ -84,10 +84,13 @@ plotGenesVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", feature2 
 plotMTpercentVsUMIs + plotGenesVsUMIs
 
 # subset thresholds determined by inspecting violin plots
-seuratData <- subset(seuratData, subset = nFeature_RNA > 350 & nFeature_RNA < 6000)
-seuratData <- subset(seuratData, subset = nCount_RNA < 60000)
-seuratData <- subset(seuratData, subset = percent.mt < 12.5 )
-seuratData <- subset(seuratData, subset = n.exp.hkgenes >= 55)
+# alternative to explicit subset is to use FilterCells
+#   seuratData <- FilterCells(seuratData, subset.names = c("nFeature_RNA", "percent.mt"),
+#                             low.thresholds = c(350, -Inf), high.thresholds = c(6000, 12.5))
+seuratData <- subset(seuratData, subset = nFeature_RNA > 350 & nFeature_RNA < 4000 &
+                                          # nCount_RNA < 60000) &
+                                          percent.mt < 15 &
+                                          n.exp.hkgenes >= 55)
 
 seuratData
 VlnPlot(seuratData, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "n.exp.hkgenes"), ncol = 4)
@@ -95,7 +98,7 @@ plotMTpercentVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", featu
 plotGenesVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 plotMTpercentVsUMIs + plotGenesVsUMIs
 
-seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 1e4) # defaults
+seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 10000) # defaults
 
 
 # FEATURE SELECTION
@@ -110,5 +113,35 @@ plotVariableFeatures <- VariableFeaturePlot(seuratData)
 plotVariableFeatures
 plotLabeledFeatures <- LabelPoints(plotVariableFeatures, points = topVariance, repel = TRUE, xnudge = 0, ynudge = 0)
 plotLabeledFeatures # is 'standardized variance' z-score, i.e. number of SDs from the mean? No. When nfeatures excludes the bottom 99.7%, i.e. 3 SDs, standardized variance threshold is about 12. It's just a particular calculation, as far as I can determine from a brief look at https://www.biorxiv.org/content/biorxiv/early/2018/11/02/460147.full.pdf
+
+# GENE SET SCORING
+#------------------
+
+# Markers of G2/M phase and markers of S phase.
+s.genes <- Seurat::cc.genes$s.genes
+s.genes <- s.genes[s.genes %in% rownames(seuratData)] # genes in dataset
+g2m.genes <- Seurat::cc.genes$g2m.genes
+g2m.genes <- g2m.genes[g2m.genes %in% rownames(seuratData)] # genes in dataset
+seuratData <- CellCycleScoring(seuratData, s.features = s.genes, g2m.features = g2m.genes, set.ident = TRUE)
+FeatureScatter(seuratData, "S.Score", "nFeature_RNA")
+
+# Genes upregulated during dissociation of tissue into single cells, used to calculate a disassociation score
+genes.dissoc <- list(c("ATF3", "BTG2", "CEBPB", "CEBPD", "CXCL3", "CXCL2", "CXCL1", "DNAJA1", "DNAJB1", "DUSP1", "EGR1", "FOS", "FOSB", "HSP90AA1", "HSP90AB1", "HSPA1A", "HSPA1B", "HSPA1A", "HSPA1B", "HSPA8", "HSPB1", "HSPE1", "HSPH1", "ID3", "IER2", "JUN", "JUNB", "JUND", "MT1X", "NFKBIA", "NR4A1", "PPP1R15A", "SOCS3", "ZFP36"))
+seuratData <- AddModuleScore(seuratData, features = genes.dissoc, ctrl.size = 20, name = "genes_dissoc")
+FeatureScatter(seuratData, "genes_dissoc1", "nFeature_RNA")
+
+# SCALING
+#---------
+# Important to scale all genes that will be used as input to PCA or heatmaps.
+# The Seurat ScaleData function
+#   - shifts expression so that mean expression across cells is 0 for each gene
+#   - scales expression so that the variance across cells is 1 for each gene
+#       this ensures genes are weighted evenly in downstream analyses; otherwise highly-expressed genes would dominate
+#   - stores this data to seuratData[["RNA"]]@scale.data (equivalently: seuratData@assays$RNA@scale.data)
+#   By default, only operates on previously identified highly-variable features
+#   Optionally, use vars.to.regress = "percent.mt" etc, though better to use sctransform()'s vars.to.regress for this; see https://www.biorxiv.org/content/10.1101/576827v2 and https://satijalab.org/seurat/v3.0/sctransform_vignette.html
+
+all.genes <- rownames(seuratData) # equivalently: seuratData@assays$RNA@counts@Dimnames[1]
+seuratData <- ScaleData(seuratData, features = all.genes) # override default and scale all genes, not just highly-variable features
 
 
