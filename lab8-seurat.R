@@ -161,8 +161,24 @@ seuratData <- ScaleData(seuratData,  vars.to.regress = c("percent.mt")) # overri
 #------------------------------------------------------
 
 seuratData <- RunPCA(seuratData, features = VariableFeatures(seuratData), ndims.print = 1:5, nfeatures.print = 5) # equivalently, features = seuratData@assays$RNA@var.features but note that that means specifying assay RNA, whereas if you do SCTransform it's assay SCT. Avoid confusion with the VariableFeatures call instead.
-
+seuratDataSC <- RunPCA(seuratDataSC, features = VariableFeatures(seuratDataSC), ndims.print = 1:5, nfeatures.print = 5)
 VizDimLoadings(seuratData, dims = 1:2, reduction = "pca")
 VizDimLoadings(seuratDataSC, dims = 1:2, reduction = "pca")
 DimPlot(seuratData, reduction = "pca")
 DimPlot(seuratDataSC, reduction = "pca")
+
+seuratData <- RunICA(seuratData, features = VariableFeatures(seuratData), ndims.print = 1:5, nfeatures.print = 5)
+seuratDataSC <- RunICA(seuratDataSC, features = VariableFeatures(seuratDataSC), ndims.print = 1:5, nfeatures.print = 5)
+VizDimLoadings(seuratData, dims = 1:2, reduction = "ica")
+VizDimLoadings(seuratDataSC, dims = 1:2, reduction = "ica")
+DimPlot(seuratData, reduction = "ica")
+DimPlot(seuratDataSC, reduction = "ica")
+
+# ProjectDim scores each gene in the dataset (including genes not included
+# in the PCA) based on their correlation with the calculated components.
+# Though we don't use this further here, it can be used to identify markers
+# that are strongly correlated with cellular heterogeneity, but may not have
+# passed through variable gene selection.  The results of the projected PCA
+# can be explored by setting use.full=T in the functions above
+seuratData <- ProjectDim(seuratData, reduction = "pca")
+seuratDataSC <- ProjectDim(seuratDataSC, reduction = "pca")
