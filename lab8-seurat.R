@@ -52,6 +52,7 @@ seuratData@assays$RNA@counts[1:10,1:10]
 genesPerCell_sd <- Matrix::colSums(seuratData@assays$RNA@counts)
 plot(sort(genesPerCell_sd), log='y', xlab='Cell', ylab='Complexity', main='Genes per Cell (ordered, cells > 3, genes > 350)')
 
+
 # QUALITY CONTROL
 #-----------------
 
@@ -93,3 +94,6 @@ VlnPlot(seuratData, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "n.
 plotMTpercentVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plotGenesVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 plotMTpercentVsUMIs + plotGenesVsUMIs
+
+seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 1e4)
+
