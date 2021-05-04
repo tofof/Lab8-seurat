@@ -182,3 +182,30 @@ DimPlot(seuratDataSC, reduction = "ica")
 # can be explored by setting use.full=T in the functions above
 seuratData <- ProjectDim(seuratData, reduction = "pca")
 seuratDataSC <- ProjectDim(seuratDataSC, reduction = "pca")
+
+
+# HEATMAP
+#---------
+
+DimHeatmap(seuratData, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
+DimHeatmap(seuratDataSC, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
+
+
+# DIMENSIONALITY DETERMINATION
+#------------------------------
+# First step in clustering is to determine the 'true' dimensionality of the dataset.
+# Determine dimensionality of the dataset using the JackStraw procedure from Macosko et al (http://www.cell.com/abstract/S0092-8674(15)00549-8)
+# JackStraw cannot be used on SCT-transformed data - JackStraw assumes each gene has equal variance, but SCT normalization weights gene variance by biological heterogeneity
+# Contrast with less-computationally-demanding ElbowPlot
+
+seuratData <- JackStraw(seuratData, reduction = "pca")
+seuratData <- ScoreJackStraw(seuratData, dims = 1:20)
+JackStrawPlot(seuratData, dims = 1:20)
+
+PCASigGenes(seuratData, pcs.use = 1, pval.cut = 0.001)[1:20] # No idea what this is supposed to illustrate
+ElbowPlot(seuratData, ndims = 50, reduction = "pca")
+ElbowPlot(seuratDataSC, ndims = 50, reduction = "pca")
+
+
+
+
