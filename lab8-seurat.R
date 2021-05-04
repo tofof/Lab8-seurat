@@ -95,5 +95,20 @@ plotMTpercentVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", featu
 plotGenesVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 plotMTpercentVsUMIs + plotGenesVsUMIs
 
-seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 1e4)
+seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 1e4) # defaults
+
+
+# FEATURE SELECTION
+#-------------------
+
+seuratData <- FindVariableFeatures(seuratData, selection.method = "vst",
+                                   nfeatures = 2000) # defaults
+                                   # nfeatures = dim(seuratData@assays$RNA@counts)[1]*.003) # 3 SDs out
+
+topVariance <- head(VariableFeatures(seuratData), 10) # 10 most highly-variable genes
+plotVariableFeatures <- VariableFeaturePlot(seuratData)
+plotVariableFeatures
+plotLabeledFeatures <- LabelPoints(plotVariableFeatures, points = topVariance, repel = TRUE, xnudge = 0, ynudge = 0)
+plotLabeledFeatures # is 'standardized variance' z-score, i.e. number of SDs from the mean? No. When nfeatures excludes the bottom 99.7%, i.e. 3 SDs, standardized variance threshold is about 12. It's just a particular calculation, as far as I can determine from a brief look at https://www.biorxiv.org/content/biorxiv/early/2018/11/02/460147.full.pdf
+
 
