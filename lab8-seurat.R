@@ -25,16 +25,16 @@ counts_matrix_filename <- paste0(datadir,"/filtered_gene_bc_matrices/GRCh38/") #
 counts <- Read10X(data.dir = counts_matrix_filename)
 countsPerCell <- Matrix::colSums(counts)
 countsPerGene <- Matrix::rowSums(counts)
-genesPerCell <- Matrix::colSums(counts>0) # count gene only if it has non-zero reads mapped
-cellsPerGene <- Matrix::rowSums(counts>0) # count cells only where the gene is expressed
+genesPerCell <- Matrix::colSums(counts > 0) # count gene only if it has non-zero reads mapped
+cellsPerGene <- Matrix::rowSums(counts > 0) # count cells only where the gene is expressed
 
-hist(log10(countsPerCell+1),main='Counts per Cell', col='wheat')
-hist(log10(genesPerCell+1),main='Genes per Cell', col='wheat')
-hist(log10(countsPerGene+1),main='Counts per Gene', col='wheat')
-hist(log10(cellsPerGene+1),main='Cells per Gene', col='wheat')
-plot(countsPerCell, genesPerCell, log='xy', col='dodgerblue4')
-plot(cellsPerGene,countsPerGene, log='xy', col='dodgerblue4')
-plot(sort(genesPerCell), log='y', xlab='Cell', ylab='Complexity', main='Genes per Cell (ordered)')
+hist(log10(countsPerCell + 1), main = 'Counts per Cell', col = 'wheat')
+hist(log10(genesPerCell + 1), main = 'Genes per Cell', col = 'wheat')
+hist(log10(countsPerGene + 1), main = 'Counts per Gene', col = 'wheat')
+hist(log10(cellsPerGene + 1), main = 'Cells per Gene', col = 'wheat')
+plot(countsPerCell, genesPerCell, log = 'xy', col = 'dodgerblue4')
+plot(cellsPerGene,countsPerGene, log = 'xy', col = 'dodgerblue4')
+plot(sort(genesPerCell), log = 'y', xlab = 'Cell', ylab = 'Complexity', main = 'Genes per Cell (ordered)')
 
 # Seurat data objects contain raw and computed data in 'slots' within the object.
 # The Assay class stores single cell data. Typically, scRNA-seq will only yield one Assay object: $RNA.
@@ -50,7 +50,7 @@ seuratData <- CreateSeuratObject(counts, min.cells = 3, min.features = 350, proj
 seuratData
 seuratData@assays$RNA@counts[1:10,1:10]
 genesPerCell_sd <- Matrix::colSums(seuratData@assays$RNA@counts)
-plot(sort(genesPerCell_sd), log='y', xlab='Cell', ylab='Complexity', main='Genes per Cell (ordered, cells > 3, genes > 350)')
+plot(sort(genesPerCell_sd), log = 'y', xlab = 'Cell', ylab = 'Complexity', main = 'Genes per Cell (ordered, cells > 3, genes > 350)')
 
 
 # QUALITY CONTROL & NORMALIZATION
