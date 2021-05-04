@@ -156,3 +156,13 @@ FeatureScatter(seuratData, "genes_dissoc1", "nFeature_RNA")
 all.genes <- rownames(seuratData) # equivalently: seuratData@assays$RNA@counts@Dimnames[1]
 seuratData <- ScaleData(seuratData,  vars.to.regress = c("percent.mt")) # override default and scale all genes by adding `features = all.genes,`, not just highly-variable features
 
+
+# DIMENSIONAL REDUCTION / PRINCIPAL COMPONENT ANALYSIS
+#------------------------------------------------------
+
+seuratData <- RunPCA(seuratData, features = VariableFeatures(seuratData), ndims.print = 1:5, nfeatures.print = 5) # equivalently, features = seuratData@assays$RNA@var.features but note that that means specifying assay RNA, whereas if you do SCTransform it's assay SCT. Avoid confusion with the VariableFeatures call instead.
+
+VizDimLoadings(seuratData, dims = 1:2, reduction = "pca")
+VizDimLoadings(seuratDataSC, dims = 1:2, reduction = "pca")
+DimPlot(seuratData, reduction = "pca")
+DimPlot(seuratDataSC, reduction = "pca")
