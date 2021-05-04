@@ -3,6 +3,7 @@ library(dplyr)
 library(Matrix)
 library(gdata)
 library(patchwork)
+library(sctransform)
 
 # PREAMBLE
 #----------
@@ -98,6 +99,11 @@ plotMTpercentVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", featu
 plotGenesVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 plotMTpercentVsUMIs + plotGenesVsUMIs
 
+# Variable regression using sctransform
+#   single command replaces NormalizeData, ScaleData, and FindVariableFeatures
+seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = TRUE)
+
+# Normalization
 seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 10000) # defaults
 
 
@@ -142,7 +148,11 @@ FeatureScatter(seuratData, "genes_dissoc1", "nFeature_RNA")
 #   By default, only operates on previously identified highly-variable features
 #   Optionally, use vars.to.regress = "percent.mt" etc, though better to use sctransform()'s vars.to.regress for this; see https://www.biorxiv.org/content/10.1101/576827v2 and https://satijalab.org/seurat/v3.0/sctransform_vignette.html
 
-all.genes <- rownames(seuratData) # equivalently: seuratData@assays$RNA@counts@Dimnames[1]
-seuratData <- ScaleData(seuratData, features = all.genes) # override default and scale all genes, not just highly-variable features
+# Variable regression using sctransform
+#   single command replaces NormalizeData, ScaleData, and FindVariableFeatures
+#   INSERTED ABOVE, PRIOR TO MANUAL NORMALIZATION
+# seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = FALSE)
 
+all.genes <- rownames(seuratData) # equivalently: seuratData@assays$RNA@counts@Dimnames[1]
+seuratData <- ScaleData(seuratData,  vars.to.regress = c("percent.mt")) # override default and scale all genes by adding `features = all.genes,`, not just highly-variable features
 
