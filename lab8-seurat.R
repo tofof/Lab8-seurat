@@ -103,6 +103,7 @@ seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", s
 
 # FEATURE SELECTION
 #-------------------
+# sets identity information
 
 seuratData <- FindVariableFeatures(seuratData, selection.method = "vst",
                                    nfeatures = 2000) # defaults
