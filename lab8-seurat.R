@@ -271,5 +271,33 @@ DoHeatmap(seuratDataSC, features = top20$gene, label = TRUE, size = 3)
 DoHeatmap(seuratDataSC, features = top20pvalue$gene, label = TRUE, size = 3)
 DoHeatmap(seuratDataSC, features = top5bycluster$gene, label = TRUE, size = 3)
 
+# RENAMING CLUSTERS
+#-------------------
 
+# if you know from looking cluster membership and recognize cell types from known markers, you can manually specify:
+#   new.cluster.ids <- c("Naive CD4 T", "Memory CD4 T", "CD14+ Mono", "B", "CD8 T", "FCGR3A+ Mono", "NK", "DC", "Platelet")
+#   names(new.cluster.ids) <- levels(seuratDataSC)
+#   seuratDataSC <- RenameIdents(seuratDataSC, new.cluster.ids)
+#   DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
+
+# otherwise, a you can pull from the "active.ident" field if it's been usefully populated:
+new.cluster.ids <- paste0("CellType", levels(seuratDataSC@active.ident))
+names(x = new.cluster.ids) <- levels(x = seuratDataSC)
+seuratDataSC <- RenameIdents(object = seuratDataSC, new.cluster.ids)
+DimPlot(seuratDataSC, reduction = 'umap', label = TRUE, pt.size = 0.5) + NoLegend()
+
+# SUBDIVIDING CLUSTERS WORKFLOW
+#------------------------------
+
+seuratDataSC[["ClusterNames_1.6"]] <- Idents(seuratDataSC) # stash current cluster names
+seuratDataSC <- FindClusters(seuratDataSC, resolution = 2.0) # rerun clustering
+plot1 <- DimPlot(seuratDataSC, reduction = "umap", label = TRUE) + NoLegend()
+plot2 <- DimPlot(seuratDataSC, reduction = "umap", group.by = "ClusterNames_1.6", label = TRUE) + NoLegend()
+
+# patchwork system
+plot1 + plot2
+
+# observe which group split, and can then find markers differentiating it. e.g. assuming group 0 split into new groups 0 and 1:
+cell.markers <- FindMarkers(seuratDataSC, ident.1 = 0, ident.2 = 1)
+FeaturePlot(seuratDataSC, features = c("S100A4", "CCR7"), cols = c("green", "blue"))
 
