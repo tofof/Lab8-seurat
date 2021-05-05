@@ -195,7 +195,7 @@ seuratData <- ProjectDim(seuratData, reduction = "pca")
 #---------
 
 DimHeatmap(seuratData, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
-DimHeatmap(seuratDataSC, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
+DimHeatmap(seuratDataSC, dims = 1:30, cells = 500, reduction = "pca", balanced = TRUE)
 
 
 # DIMENSIONALITY DETERMINATION
@@ -226,12 +226,11 @@ head(Idents(seuratData),5) # look at cluster IDs of the first 5 cells
 # Seurat v3 offers UMAP and tSNE to visualize clustering
 seuratDataSC <- RunUMAP(seuratDataSC, dims = 1:50)
 DimPlot(seuratDataSC, reduction = "umap", label = TRUE) + NoLegend()
-
-
-
+seuratDataSC <- RunTSNE(seuratDataSC, reduction.use = "pca", dims.use = 1:50, perplexity = 10)
+DimPlot(seuratDataSC, reduction = "tsne", label = TRUE) + NoLegend()
 
 
 # DATA EXPORT
 #-------------
 
-saveRDS(seuratData, file = "/output/seuratData_tutorial.rds") # Can be loaded back in without rerunning computationally intense steps
+saveRDS(seuratDataSC, file = paste0(datadir,"output/seuratData_tutorial.rds")) # Can be loaded back in without rerunning computationally intense steps
