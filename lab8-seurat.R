@@ -193,8 +193,22 @@ DimHeatmap(seuratData, dims = 1:6, cells = 300, reduction = "pca", balanced = TR
 seuratData <- JackStraw(seuratData, reduction = "pca")
 seuratData <- ScoreJackStraw(seuratData, dims = 1:20)
 JackStrawPlot(seuratData, dims = 1:20)
-
 PCASigGenes(seuratData, pcs.use = 1, pval.cut = 0.001)[1:20] # No idea what this is supposed to illustrate
 ElbowPlot(seuratData, ndims = 50, reduction = "pca")
+
+
+# CLUSTERING
+#------------
+
+# Seurat v3 has a FindNeighbors() that constructs a SNN/KNN graph (based on euclidian dist in PCA space), with edge weights refined by Jaccard similarity (shared overlap in local neighborhood)
+seuratData <- FindNeighbors(seuratData, dims = 1:30) # where dimensionality used (30) is determined in the step above
+
+# Seurat v3 also has a FindClusters() that does modularity optimization techniques (Louvain by default, or SLM)
+seuratData <- FindClusters(seuratData, resolution = 2.4) # where resolution affects granularity of downstream clusters, increasing->more clusters.  Typically use 0.4-1.2 for sc datasets of around 3K cells, increasing as necessary for larger datasets. My use of 2.4 is completely uninformed.
+head(Idents(seuratData),5) # look at cluster IDs of the first 5 cells
+
+# Seurat v3 offers UMAP and tSNE to visualize clustering
+seuratData <- RunUMAP(seuratData, dims = 1:30)
+DimPlot(seuratData, reduction = "umap")
 
 
