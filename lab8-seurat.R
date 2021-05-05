@@ -246,9 +246,6 @@ head(cluster1.markers)
 cluster2.markers <- FindMarkers(seuratDataSC, ident.1 = 2, ident2 = c(8,11)) # find all markers distinguishing cluster 2 from clusters 8 and 11
 head(cluster2.markers)
 
-cluster3.markers <- FindMarkers(seuratDataSC, ident.1 = 3, test.use = "roc", only.pos = TRUE) # roc returns classification power from 0-1 for each individual marker
-head(cluster3.markers)
-
 cluster414.markers <- FindMarkers(seuratDataSC, ident.1 = c(4,14), only.pos = TRUE)
 head(cluster414.markers)
 
@@ -300,4 +297,14 @@ plot1 + plot2
 # observe which group split, and can then find markers differentiating it. e.g. assuming group 0 split into new groups 0 and 1:
 cell.markers <- FindMarkers(seuratDataSC, ident.1 = 0, ident.2 = 1)
 FeaturePlot(seuratDataSC, features = c("S100A4", "CCR7"), cols = c("green", "blue"))
+
+# DIFFERENTIAL EXPRESSION
+#------------------------
+
+# Alternative analyses
+# Differential expression using t-test
+FindMarkers(seuratDataSC, ident.1 = 0, ident.2 = 1, test.use = "t") # might have to use "CellType0" if you've done the new cluster id step
+
+# Differential expression using ROC
+FindMarkers(seuratDataSC, ident.1 = 3, test.use = "roc", only.pos = TRUE) # roc returns classification power from 0-1 for each individual marker
 
