@@ -101,7 +101,8 @@ plotMTpercentVsUMIs + plotGenesVsUMIs
 
 # Variable regression using sctransform
 #   single command replaces NormalizeData, ScaleData, and FindVariableFeatures
-# seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = TRUE)
+#   see further discussion below. Despite the loss of JackStraw, this should probably be the preferred workflow.
+seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = TRUE)
 
 # Normalization
 seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 10000) # defaults
@@ -117,9 +118,11 @@ seuratData <- FindVariableFeatures(seuratData, selection.method = "vst",
 
 topVariance <- head(VariableFeatures(seuratData), 10) # 10 most highly-variable genes
 plotVariableFeatures <- VariableFeaturePlot(seuratData)
-plotVariableFeatures
 plotLabeledFeatures <- LabelPoints(plotVariableFeatures, points = topVariance, repel = TRUE, xnudge = 0, ynudge = 0)
 plotLabeledFeatures # is 'standardized variance' z-score, i.e. number of SDs from the mean? No. When nfeatures excludes the bottom 99.7%, i.e. 3 SDs, standardized variance threshold is about 12. It's just a particular calculation, as far as I can determine from a brief look at https://www.biorxiv.org/content/biorxiv/early/2018/11/02/460147.full.pdf
+plotVariableFeatures <- VariableFeaturePlot(seuratDataSC)
+plotLabeledFeatures <- LabelPoints(plotVariableFeatures, points = topVariance, repel = TRUE, xnudge = 0, ynudge = 0)
+plotLabeledFeatures
 
 # GENE SET SCORING
 #------------------
@@ -151,6 +154,11 @@ FeatureScatter(seuratData, "genes_dissoc1", "nFeature_RNA")
 # Variable regression using sctransform - for advanced users
 #   single command replaces NormalizeData, ScaleData, and FindVariableFeatures
 #   if so, insert above, prior to manual normalization, but breaks JackStraw dimensional analysis later
+#   SCTransform substantially mitigates the confounder of variation in sequencing depth compared to standard log-normalization (source: https://satijalab.org/seurat/archive/v3.0/sctransform_vignette.html 'Why can we choose more PCs...')
+#   It also an entire end-to-end workflow more stable in a single, pithy function:
+#     pbmc <- CreateSeuratObject(pbmc_data) %>% PercentageFeatureSet(pattern = "^MT-", col.name = "percent.mt") %>%
+#     SCTransform(vars.to.regress = "percent.mt") %>% RunPCA() %>% FindNeighbors(dims = 1:30) %>%
+#     RunUMAP(dims = 1:30) %>% FindClusters()
 # seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = FALSE)
 
 all.genes <- rownames(seuratData) # equivalently: seuratData@assays$RNA@counts@Dimnames[1]
@@ -163,10 +171,16 @@ seuratData <- ScaleData(seuratData,  vars.to.regress = c("percent.mt")) # overri
 seuratData <- RunPCA(seuratData, features = VariableFeatures(seuratData), ndims.print = 1:5, nfeatures.print = 5) # equivalently, features = seuratData@assays$RNA@var.features but note that that means specifying assay RNA, whereas if you do SCTransform it's assay SCT. Avoid confusion with the VariableFeatures call instead.
 VizDimLoadings(seuratData, dims = 1:2, reduction = "pca")
 DimPlot(seuratData, reduction = "pca")
+seuratDataSC <- RunPCA(seuratDataSC, features = VariableFeatures(seuratDataSC), ndims.print = 1:5, nfeatures.print = 5) # equivalently, features = seuratData@assays$RNA@var.features but note that that means specifying assay RNA, whereas if you do SCTransform it's assay SCT. Avoid confusion with the VariableFeatures call instead.
+VizDimLoadings(seuratDataSC, dims = 1:2, reduction = "pca")
+DimPlot(seuratDataSC, reduction = "pca")
 
 seuratData <- RunICA(seuratData, features = VariableFeatures(seuratData), ndims.print = 1:5, nfeatures.print = 5)
 VizDimLoadings(seuratData, dims = 1:2, reduction = "ica")
 DimPlot(seuratData, reduction = "ica")
+seuratDataSC <- RunICA(seuratDataSC, features = VariableFeatures(seuratDataSC), ndims.print = 1:5, nfeatures.print = 5)
+VizDimLoadings(seuratDataSC, dims = 1:2, reduction = "ica")
+DimPlot(seuratDataSC, reduction = "ica")
 
 # ProjectDim scores each gene in the dataset (including genes not included
 # in the PCA) based on their correlation with the calculated components.
@@ -181,6 +195,7 @@ seuratData <- ProjectDim(seuratData, reduction = "pca")
 #---------
 
 DimHeatmap(seuratData, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
+DimHeatmap(seuratDataSC, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
 
 
 # DIMENSIONALITY DETERMINATION
@@ -195,21 +210,25 @@ seuratData <- ScoreJackStraw(seuratData, dims = 1:20)
 JackStrawPlot(seuratData, dims = 1:20)
 PCASigGenes(seuratData, pcs.use = 1, pval.cut = 0.001)[1:20] # No idea what this is supposed to illustrate
 ElbowPlot(seuratData, ndims = 50, reduction = "pca")
+ElbowPlot(seuratDataSC, ndims = 50, reduction = "pca")
 
 
 # CLUSTERING
 #------------
 
 # Seurat v3 has a FindNeighbors() that constructs a SNN/KNN graph (based on euclidian dist in PCA space), with edge weights refined by Jaccard similarity (shared overlap in local neighborhood)
-seuratData <- FindNeighbors(seuratData, dims = 1:30) # where dimensionality used (30) is determined in the step above
+seuratDataSC <- FindNeighbors(seuratDataSC, dims = 1:50) # where dimensionality used (50) is determined in the step above
 
 # Seurat v3 also has a FindClusters() that does modularity optimization techniques (Louvain by default, or SLM)
-seuratData <- FindClusters(seuratData, resolution = 2.4) # where resolution affects granularity of downstream clusters, increasing->more clusters.  Typically use 0.4-1.2 for sc datasets of around 3K cells, increasing as necessary for larger datasets. My use of 2.4 is completely uninformed.
+seuratDataSC <- FindClusters(seuratDataSC,resolution = 1.6) # where resolution affects granularity of downstream clusters, increasing->more clusters.  Typically use 0.4-1.2 for sc datasets of around 3K cells, increasing as necessary for larger datasets. My use of 1.6 is completely uninformed.
 head(Idents(seuratData),5) # look at cluster IDs of the first 5 cells
 
 # Seurat v3 offers UMAP and tSNE to visualize clustering
-seuratData <- RunUMAP(seuratData, dims = 1:30)
-DimPlot(seuratData, reduction = "umap")
+seuratDataSC <- RunUMAP(seuratDataSC, dims = 1:50)
+DimPlot(seuratDataSC, reduction = "umap", label = TRUE) + NoLegend()
+
+
+
 
 
 # DATA EXPORT
