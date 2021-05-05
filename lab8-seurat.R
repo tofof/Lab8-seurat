@@ -314,6 +314,10 @@ seuratData.anchors <- FindTransferAnchors(seuratData.integrated, query = seuratD
 predictions <- TransferData(seuratData.anchors, refdata = seuratData.integrated$ClusterNames_0.6, dims = 1:30)
 seuratData <- AddMetaData(seuratData.query, metadata = predictions)
 table(seuratData@meta.data$ClusterNames_0.6, seuratData@meta.data$predicted.id)
-# I guess the table is supposed to show predictions using a classifier, vs actuals? So eg 00 is predicted and actual both 0, 02 is maybe actual 0 predicted 2, I think, where actual is our assigned clusters and predicted is from this classifier training approach
+# I guess the table is supposed to show predictions using a classifier, vs existing clusters? So eg 00 is predicted and existing both 0, 02 is maybe existing 0 predicted 2, I think
 # so a table with a lot of 0s is good because it means stuff isn't widely scattered among different clusters
 
+# PROBABILISTIC CLUSTERING (LDA/TOPICS)
+#---------------------------------------
+# see https://broadinstitute.github.io/2020_scWorkshop/feature-selection-and-cluster-analysis.html#probabilistic-lda-clustering
+# omitting here because tutorial uses a different dataset
