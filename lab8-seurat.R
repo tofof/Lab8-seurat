@@ -295,9 +295,9 @@ FindMarkers(seuratData, ident.1 = 0, ident.2 = 1, test.use = "t") # might have t
 FindMarkers(seuratData, ident.1 = 3, test.use = "roc", only.pos = TRUE) # roc returns classification power from 0-1 for each individual marker
 
 
-# COMPREHENSIVE INTEGRATION
-#---------------------------
-# see also https://satijalab.org/seurat/archive/v3.0/integration.html#standard-workflow
+# CLASSIFIER INTEGRATION TO CHECK CLUSTERING
+#--------------------------------------------
+# see also (might actually be unrelated?) https://satijalab.org/seurat/archive/v3.0/integration.html#standard-workflow
 # must use log-normalized RNA data, not SCTransformed
 
 # Assign the test object a three level attribute
@@ -308,7 +308,12 @@ seuratData <- AddMetaData(seuratData, metadata = groups, col.name = "group")
 # Find Anchors
 seuratData.list <- SplitObject(seuratData, split.by = "group")
 seuratData.anchors <- FindIntegrationAnchors(seuratData.list, dims = 1:30)
-
 seuratData.integrated <- IntegrateData(seuratData.anchors, dims = 1:30)
 seuratData.query <- seuratData.list[["train"]]
 seuratData.anchors <- FindTransferAnchors(seuratData.integrated, query = seuratData.query, dims = 1:30)
+predictions <- TransferData(seuratData.anchors, refdata = seuratData.integrated$ClusterNames_0.6, dims = 1:30)
+seuratData <- AddMetaData(seuratData.query, metadata = predictions)
+table(seuratData@meta.data$ClusterNames_0.6, seuratData@meta.data$predicted.id)
+# I guess the table is supposed to show predictions using a classifier, vs actuals? So eg 00 is predicted and actual both 0, 02 is maybe actual 0 predicted 2, I think, where actual is our assigned clusters and predicted is from this classifier training approach
+# so a table with a lot of 0s is good because it means stuff isn't widely scattered among different clusters
+
