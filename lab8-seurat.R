@@ -212,3 +212,7 @@ seuratData <- RunUMAP(seuratData, dims = 1:30)
 DimPlot(seuratData, reduction = "umap")
 
 
+# DATA EXPORT
+#-------------
+
+saveRDS(seuratData, file = "/output/seuratData_tutorial.rds") # Can be loaded back in without rerunning computationally intense steps
