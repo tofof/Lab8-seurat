@@ -101,7 +101,7 @@ plotMTpercentVsUMIs + plotGenesVsUMIs
 
 # Variable regression using sctransform
 #   single command replaces NormalizeData, ScaleData, and FindVariableFeatures
-seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = TRUE)
+# seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = TRUE)
 
 # Normalization
 seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 10000) # defaults
@@ -148,9 +148,9 @@ FeatureScatter(seuratData, "genes_dissoc1", "nFeature_RNA")
 #   By default, only operates on previously identified highly-variable features
 #   Optionally, use vars.to.regress = "percent.mt" etc, though better to use sctransform()'s vars.to.regress for this; see https://www.biorxiv.org/content/10.1101/576827v2 and https://satijalab.org/seurat/v3.0/sctransform_vignette.html
 
-# Variable regression using sctransform
+# Variable regression using sctransform - for advanced users
 #   single command replaces NormalizeData, ScaleData, and FindVariableFeatures
-#   INSERTED ABOVE, PRIOR TO MANUAL NORMALIZATION
+#   if so, insert above, prior to manual normalization, but breaks JackStraw dimensional analysis later
 # seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = FALSE)
 
 all.genes <- rownames(seuratData) # equivalently: seuratData@assays$RNA@counts@Dimnames[1]
@@ -161,18 +161,12 @@ seuratData <- ScaleData(seuratData,  vars.to.regress = c("percent.mt")) # overri
 #------------------------------------------------------
 
 seuratData <- RunPCA(seuratData, features = VariableFeatures(seuratData), ndims.print = 1:5, nfeatures.print = 5) # equivalently, features = seuratData@assays$RNA@var.features but note that that means specifying assay RNA, whereas if you do SCTransform it's assay SCT. Avoid confusion with the VariableFeatures call instead.
-seuratDataSC <- RunPCA(seuratDataSC, features = VariableFeatures(seuratDataSC), ndims.print = 1:5, nfeatures.print = 5)
 VizDimLoadings(seuratData, dims = 1:2, reduction = "pca")
-VizDimLoadings(seuratDataSC, dims = 1:2, reduction = "pca")
 DimPlot(seuratData, reduction = "pca")
-DimPlot(seuratDataSC, reduction = "pca")
 
 seuratData <- RunICA(seuratData, features = VariableFeatures(seuratData), ndims.print = 1:5, nfeatures.print = 5)
-seuratDataSC <- RunICA(seuratDataSC, features = VariableFeatures(seuratDataSC), ndims.print = 1:5, nfeatures.print = 5)
 VizDimLoadings(seuratData, dims = 1:2, reduction = "ica")
-VizDimLoadings(seuratDataSC, dims = 1:2, reduction = "ica")
 DimPlot(seuratData, reduction = "ica")
-DimPlot(seuratDataSC, reduction = "ica")
 
 # ProjectDim scores each gene in the dataset (including genes not included
 # in the PCA) based on their correlation with the calculated components.
@@ -181,14 +175,12 @@ DimPlot(seuratDataSC, reduction = "ica")
 # passed through variable gene selection.  The results of the projected PCA
 # can be explored by setting use.full=T in the functions above
 seuratData <- ProjectDim(seuratData, reduction = "pca")
-seuratDataSC <- ProjectDim(seuratDataSC, reduction = "pca")
 
 
 # HEATMAP
 #---------
 
 DimHeatmap(seuratData, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
-DimHeatmap(seuratDataSC, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
 
 
 # DIMENSIONALITY DETERMINATION
@@ -204,8 +196,5 @@ JackStrawPlot(seuratData, dims = 1:20)
 
 PCASigGenes(seuratData, pcs.use = 1, pval.cut = 0.001)[1:20] # No idea what this is supposed to illustrate
 ElbowPlot(seuratData, ndims = 50, reduction = "pca")
-ElbowPlot(seuratDataSC, ndims = 50, reduction = "pca")
-
-
 
 
