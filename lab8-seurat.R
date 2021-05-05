@@ -191,8 +191,8 @@ DimPlot(seuratDataSC, reduction = "ica")
 seuratData <- ProjectDim(seuratData, reduction = "pca")
 
 
-# HEATMAP
-#---------
+# INITIAL HEATMAP
+#-----------------
 
 DimHeatmap(seuratData, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
 DimHeatmap(seuratDataSC, dims = 1:30, cells = 500, reduction = "pca", balanced = TRUE)
@@ -234,3 +234,42 @@ DimPlot(seuratDataSC, reduction = "tsne", label = TRUE) + NoLegend()
 #-------------
 
 saveRDS(seuratDataSC, file = paste0(datadir,"output/seuratData_tutorial.rds")) # Can be loaded back in without rerunning computationally intense steps
+seuratDataSC <- readRDS(file = paste0(datadir,"output/seuratData_tutorial.rds")) # load
+
+
+# DIFFERENTIALLY EXPRESSED FEATURES / CLUSTER BIOMARKERS
+#--------------------------------------------------------
+
+cluster1.markers <- FindMarkers(seuratDataSC, ident.1 = 1, min.pct = 0.2) # cluster to ID is ident.1 (to do all clusters, use FindAllMarkers instead). Min.pct is detection threshold, thresh.test is to require differential expression amount between two groups. Finally, max.cells.per.ident can speed computation for a small loss in power
+head(cluster1.markers)
+
+cluster2.markers <- FindMarkers(seuratDataSC, ident.1 = 2, ident2 = c(8,11)) # find all markers distinguishing cluster 2 from clusters 8 and 11
+head(cluster2.markers)
+
+cluster3.markers <- FindMarkers(seuratDataSC, ident.1 = 3, test.use = "roc", only.pos = TRUE) # roc returns classification power from 0-1 for each individual marker
+head(cluster3.markers)
+
+cluster414.markers <- FindMarkers(seuratDataSC, ident.1 = c(4,14), only.pos = TRUE)
+head(cluster414.markers)
+
+nsclc.markers <- FindAllMarkers(seuratDataSC, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+saveRDS(nsclc.markers, file = paste0(datadir,"output/nsclc.markers.rds"))
+nsclc.markers <- readRDS(file = paste0(datadir,"output/nsclc.markers.rds"))
+
+nsclc.markers %>% group_by(cluster) %>% top_n(2, avg_log2FC)
+nsclc.markers %>% filter(cluster == 1 | cluster == 2 | cluster == 3) %>% filter(n() > 2 & avg_log2FC > 1.4)
+top20 <- nsclc.markers %>% top_n(20, avg_log2FC)
+top20pvalue <- nsclc.markers %>% top_n(-20, p_val)
+top20pvalue
+top5bycluster <- nsclc.markers %>% group_by(cluster) %>% top_n(5, avg_log2FC)
+
+VlnPlot(seuratDataSC, features = c("MS4A1", "JCHAIN"))
+VlnPlot(seuratDataSC, features = c("NKG7", "TYROBP"), log = TRUE)
+VlnPlot(seuratDataSC, features = c("SERINC2", "CD3E"))
+FeaturePlot(seuratDataSC, features = c("MS4A1", "TYROBP", "SERINC2", "CD3E"))
+DoHeatmap(seuratDataSC, features = top20$gene, label = TRUE, size = 3)
+DoHeatmap(seuratDataSC, features = top20pvalue$gene, label = TRUE, size = 3)
+DoHeatmap(seuratDataSC, features = top5bycluster$gene, label = TRUE, size = 3)
+
+
+
