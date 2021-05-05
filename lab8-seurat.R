@@ -24,6 +24,7 @@ datadir <- "./NSCLC/"
 counts_matrix_filename <- paste0(datadir,"/filtered_gene_bc_matrices/GRCh38/") # Seurat function reads genes.tsv, matrix.mtx, barcodes.tsv
 
 counts <- Read10X(data.dir = counts_matrix_filename)
+#counts <- counts[,1:1000] # use only first 1000 cells, for tutorial runspeed purposes only
 countsPerCell <- Matrix::colSums(counts)
 countsPerGene <- Matrix::rowSums(counts)
 genesPerCell <- Matrix::colSums(counts > 0) # count gene only if it has non-zero reads mapped
@@ -33,7 +34,7 @@ hist(log10(countsPerCell + 1), main = 'Counts per Cell', col = 'wheat')
 hist(log10(genesPerCell + 1), main = 'Genes per Cell', col = 'wheat')
 hist(log10(countsPerGene + 1), main = 'Counts per Gene', col = 'wheat')
 hist(log10(cellsPerGene + 1), main = 'Cells per Gene', col = 'wheat')
-plot(countsPerCell, genesPerCell, log = 'xy', col = 'dodgerblue4')
+plot(countsPerCell, genesPerCell, log = 'xy', col = 'dodgerblue4') + title('counts vs genes per cell')
 plot(cellsPerGene,countsPerGene, log = 'xy', col = 'dodgerblue4')
 plot(sort(genesPerCell), log = 'y', xlab = 'Cell', ylab = 'Complexity', main = 'Genes per Cell (ordered)')
 
@@ -71,7 +72,7 @@ plot(sort(genesPerCell_sd), log = 'y', xlab = 'Cell', ylab = 'Complexity', main 
 #   seurat <- AddMetaData(object = seurat, metadata = percent.mito, col.name = "percent.mito")
 # instead just do this, which automatically(?) stashes into meta.data:
 seuratData[["percent.mt"]] <- PercentageFeatureSet(seuratData, pattern = "^MT-")
-VlnPlot(seuratData, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"))
+#VlnPlot(seuratData, features = c("nFeature_RNA", "nCount_RNA", "percent.mt"))
 
 # housekeeping genes should be generally expressed in all cells
 hkgenes <- as.vector(read.table(paste0(datadir, "tirosh_housekeepers.txt"))$V1) # don't add `,skip=2` to read.table call, because our file has no header
@@ -91,18 +92,13 @@ plotMTpercentVsUMIs + plotGenesVsUMIs
 seuratData <- subset(seuratData, subset = nFeature_RNA > 350 & nFeature_RNA < 4000 &
                                           # nCount_RNA < 60000) &
                                           percent.mt < 15 &
-                                          n.exp.hkgenes >= 55)
+                                          n.exp.hkgenes > 55)
 
 seuratData
 VlnPlot(seuratData, features = c("nFeature_RNA", "nCount_RNA", "percent.mt", "n.exp.hkgenes"), ncol = 4)
 plotMTpercentVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", feature2 = "percent.mt")
 plotGenesVsUMIs <- FeatureScatter(seuratData, feature1 = "nCount_RNA", feature2 = "nFeature_RNA")
 plotMTpercentVsUMIs + plotGenesVsUMIs
-
-# Variable regression using sctransform
-#   single command replaces NormalizeData, ScaleData, and FindVariableFeatures
-#   see further discussion below. Despite the loss of JackStraw, this should probably be the preferred workflow.
-seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = TRUE)
 
 # Normalization
 seuratData <- NormalizeData(seuratData, normalization.method = "LogNormalize", scale.factor = 10000) # defaults
@@ -120,9 +116,7 @@ topVariance <- head(VariableFeatures(seuratData), 10) # 10 most highly-variable 
 plotVariableFeatures <- VariableFeaturePlot(seuratData)
 plotLabeledFeatures <- LabelPoints(plotVariableFeatures, points = topVariance, repel = TRUE, xnudge = 0, ynudge = 0)
 plotLabeledFeatures # is 'standardized variance' z-score, i.e. number of SDs from the mean? No. When nfeatures excludes the bottom 99.7%, i.e. 3 SDs, standardized variance threshold is about 12. It's just a particular calculation, as far as I can determine from a brief look at https://www.biorxiv.org/content/biorxiv/early/2018/11/02/460147.full.pdf
-plotVariableFeatures <- VariableFeaturePlot(seuratDataSC)
-plotLabeledFeatures <- LabelPoints(plotVariableFeatures, points = topVariance, repel = TRUE, xnudge = 0, ynudge = 0)
-plotLabeledFeatures
+
 
 # GENE SET SCORING
 #------------------
@@ -159,7 +153,7 @@ FeatureScatter(seuratData, "genes_dissoc1", "nFeature_RNA")
 #     pbmc <- CreateSeuratObject(pbmc_data) %>% PercentageFeatureSet(pattern = "^MT-", col.name = "percent.mt") %>%
 #     SCTransform(vars.to.regress = "percent.mt") %>% RunPCA() %>% FindNeighbors(dims = 1:30) %>%
 #     RunUMAP(dims = 1:30) %>% FindClusters()
-# seuratDataSC <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = FALSE)
+# seuratData <- SCTransform(seuratData, vars.to.regress = "percent.mt", verbose = FALSE)
 
 all.genes <- rownames(seuratData) # equivalently: seuratData@assays$RNA@counts@Dimnames[1]
 seuratData <- ScaleData(seuratData,  vars.to.regress = c("percent.mt")) # override default and scale all genes by adding `features = all.genes,`, not just highly-variable features
@@ -168,19 +162,15 @@ seuratData <- ScaleData(seuratData,  vars.to.regress = c("percent.mt")) # overri
 # DIMENSIONAL REDUCTION / PRINCIPAL COMPONENT ANALYSIS
 #------------------------------------------------------
 
+set.seed(2020) ## used for reporducibility for tutorial
+
 seuratData <- RunPCA(seuratData, features = VariableFeatures(seuratData), ndims.print = 1:5, nfeatures.print = 5) # equivalently, features = seuratData@assays$RNA@var.features but note that that means specifying assay RNA, whereas if you do SCTransform it's assay SCT. Avoid confusion with the VariableFeatures call instead.
 VizDimLoadings(seuratData, dims = 1:2, reduction = "pca")
 DimPlot(seuratData, reduction = "pca")
-seuratDataSC <- RunPCA(seuratDataSC, features = VariableFeatures(seuratDataSC), ndims.print = 1:5, nfeatures.print = 5) # equivalently, features = seuratData@assays$RNA@var.features but note that that means specifying assay RNA, whereas if you do SCTransform it's assay SCT. Avoid confusion with the VariableFeatures call instead.
-VizDimLoadings(seuratDataSC, dims = 1:2, reduction = "pca")
-DimPlot(seuratDataSC, reduction = "pca")
 
 seuratData <- RunICA(seuratData, features = VariableFeatures(seuratData), ndims.print = 1:5, nfeatures.print = 5)
 VizDimLoadings(seuratData, dims = 1:2, reduction = "ica")
 DimPlot(seuratData, reduction = "ica")
-seuratDataSC <- RunICA(seuratDataSC, features = VariableFeatures(seuratDataSC), ndims.print = 1:5, nfeatures.print = 5)
-VizDimLoadings(seuratDataSC, dims = 1:2, reduction = "ica")
-DimPlot(seuratDataSC, reduction = "ica")
 
 # ProjectDim scores each gene in the dataset (including genes not included
 # in the PCA) based on their correlation with the calculated components.
@@ -191,11 +181,11 @@ DimPlot(seuratDataSC, reduction = "ica")
 seuratData <- ProjectDim(seuratData, reduction = "pca")
 
 
-# INITIAL HEATMAP
-#-----------------
+# GENES BY PCs HEATMAP
+#----------------------
 
 DimHeatmap(seuratData, dims = 1:6, cells = 300, reduction = "pca", balanced = TRUE)
-DimHeatmap(seuratDataSC, dims = 1:30, cells = 500, reduction = "pca", balanced = TRUE)
+DimHeatmap(seuratData, dims = 1:6, cells = 300, reduction = "ica", balanced = TRUE)
 
 
 # DIMENSIONALITY DETERMINATION
@@ -210,101 +200,115 @@ seuratData <- ScoreJackStraw(seuratData, dims = 1:20)
 JackStrawPlot(seuratData, dims = 1:20)
 PCASigGenes(seuratData, pcs.use = 1, pval.cut = 0.001)[1:20] # No idea what this is supposed to illustrate
 ElbowPlot(seuratData, ndims = 50, reduction = "pca")
-ElbowPlot(seuratDataSC, ndims = 50, reduction = "pca")
 
 
 # CLUSTERING
 #------------
 
+set.seed(2020)
 # Seurat v3 has a FindNeighbors() that constructs a SNN/KNN graph (based on euclidian dist in PCA space), with edge weights refined by Jaccard similarity (shared overlap in local neighborhood)
-seuratDataSC <- FindNeighbors(seuratDataSC, dims = 1:50) # where dimensionality used (50) is determined in the step above
+seuratData <- FindNeighbors(seuratData, dims = 1:10) # where dimensionality used (10) is determined in the step above, in this case matching tutorial which uses a fairly severe cutoff
 
 # Seurat v3 also has a FindClusters() that does modularity optimization techniques (Louvain by default, or SLM)
-seuratDataSC <- FindClusters(seuratDataSC,resolution = 1.6) # where resolution affects granularity of downstream clusters, increasing->more clusters.  Typically use 0.4-1.2 for sc datasets of around 3K cells, increasing as necessary for larger datasets. My use of 1.6 is completely uninformed.
+seuratData <- FindClusters(seuratData, resolution = 0.6) # where resolution affects granularity of downstream clusters, increasing->more clusters.  Typically use 0.4-1.2 for sc datasets of around 3K cells, increasing as necessary for larger datasets. My use of 0.6 is to match tutorial.
 head(Idents(seuratData),5) # look at cluster IDs of the first 5 cells
 
 # Seurat v3 offers UMAP and tSNE to visualize clustering
-seuratDataSC <- RunUMAP(seuratDataSC, dims = 1:50)
-DimPlot(seuratDataSC, reduction = "umap", label = TRUE) + NoLegend()
-seuratDataSC <- RunTSNE(seuratDataSC, reduction.use = "pca", dims.use = 1:50, perplexity = 10)
-DimPlot(seuratDataSC, reduction = "tsne", label = TRUE) + NoLegend()
+seuratData <- RunTSNE(seuratData, reduction.use = "pca", dims.use = 1:10, perplexity = 10)
+DimPlot(seuratData, reduction = "tsne", label = TRUE) + NoLegend()
+set.seed(2020)
+seuratData <- RunUMAP(seuratData, dims = 1:10)
+DimPlot(seuratData, reduction = "umap", label = TRUE) + NoLegend()
+
 
 
 # DATA EXPORT
 #-------------
 
-saveRDS(seuratDataSC, file = paste0(datadir,"output/seuratData_tutorial.rds")) # Can be loaded back in without rerunning computationally intense steps
-seuratDataSC <- readRDS(file = paste0(datadir,"output/seuratData_tutorial.rds")) # load
+saveRDS(seuratData, file = paste0(datadir,"output/seuratData_tutorial.rds")) # Can be loaded back in without rerunning computationally intense steps
+seuratData <- readRDS(file = paste0(datadir,"output/seuratData_tutorial.rds")) # load
 
 
 # DIFFERENTIALLY EXPRESSED FEATURES / CLUSTER BIOMARKERS
 #--------------------------------------------------------
 
-cluster1.markers <- FindMarkers(seuratDataSC, ident.1 = 1, min.pct = 0.2) # cluster to ID is ident.1 (to do all clusters, use FindAllMarkers instead). Min.pct is detection threshold, thresh.test is to require differential expression amount between two groups. Finally, max.cells.per.ident can speed computation for a small loss in power
+cluster1.markers <- FindMarkers(seuratData, ident.1 = 1, min.pct = 0.1) # cluster to ID is ident.1 (to do all clusters, use FindAllMarkers instead). Min.pct is detection threshold, thresh.test is to require differential expression amount between two groups. Finally, max.cells.per.ident can speed computation for a small loss in power
 head(cluster1.markers)
 
-cluster2.markers <- FindMarkers(seuratDataSC, ident.1 = 2, ident2 = c(8,11)) # find all markers distinguishing cluster 2 from clusters 8 and 11
-head(cluster2.markers)
+cluster5.markers <- FindMarkers(seuratData, ident.1 = 5, ident2 = c(0,1)) # find all markers distinguishing cluster 5 from clusters 0 and 1
+head(cluster5.markers)
 
-cluster414.markers <- FindMarkers(seuratDataSC, ident.1 = c(4,14), only.pos = TRUE)
-head(cluster414.markers)
+cluster411.markers <- FindMarkers(seuratData, ident.1 = c(4,11), ident2 = c(2,3,6), thresh.use = 25, only.pos = TRUE)
+head(cluster411.markers)
 
-nsclc.markers <- FindAllMarkers(seuratDataSC, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
+nsclc.markers <- FindAllMarkers(seuratData, only.pos = TRUE, min.pct = 0.25, thresh.use = 0.25)
 saveRDS(nsclc.markers, file = paste0(datadir,"output/nsclc.markers.rds"))
 nsclc.markers <- readRDS(file = paste0(datadir,"output/nsclc.markers.rds"))
 
 nsclc.markers %>% group_by(cluster) %>% top_n(2, avg_log2FC)
-nsclc.markers %>% filter(cluster == 1 | cluster == 2 | cluster == 3) %>% filter(n() > 2 & avg_log2FC > 1.4)
-top20 <- nsclc.markers %>% top_n(20, avg_log2FC)
-top20pvalue <- nsclc.markers %>% top_n(-20, p_val)
-top20pvalue
-top5bycluster <- nsclc.markers %>% group_by(cluster) %>% top_n(5, avg_log2FC)
+# nsclc.markers %>% filter(cluster == 1 | cluster == 2 | cluster == 3) %>% filter(n() > 2 & avg_log2FC > 1.4) # example of finding genes common to multiple clusters
+top10bycluster <- nsclc.markers %>% group_by(cluster) %>% top_n(10, avg_log2FC)
 
-VlnPlot(seuratDataSC, features = c("MS4A1", "JCHAIN"))
-VlnPlot(seuratDataSC, features = c("NKG7", "TYROBP"), log = TRUE)
-VlnPlot(seuratDataSC, features = c("SERINC2", "CD3E"))
-FeaturePlot(seuratDataSC, features = c("MS4A1", "TYROBP", "SERINC2", "CD3E"))
-DoHeatmap(seuratDataSC, features = top20$gene, label = TRUE, size = 3)
-DoHeatmap(seuratDataSC, features = top20pvalue$gene, label = TRUE, size = 3)
-DoHeatmap(seuratDataSC, features = top5bycluster$gene, label = TRUE, size = 3)
+VlnPlot(seuratData, features = c("MS4A1", "CD79A"))
+VlnPlot(seuratData, features = c("NKG7", "PF4"), log = TRUE)
+FeaturePlot(seuratData, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"), cols = c("grey", "blue"), reduction = "tsne")
+DoHeatmap(seuratData, features = top10bycluster$gene, label = TRUE, size = 3)
 
 # RENAMING CLUSTERS
 #-------------------
 
 # if you know from looking cluster membership and recognize cell types from known markers, you can manually specify:
 #   new.cluster.ids <- c("Naive CD4 T", "Memory CD4 T", "CD14+ Mono", "B", "CD8 T", "FCGR3A+ Mono", "NK", "DC", "Platelet")
-#   names(new.cluster.ids) <- levels(seuratDataSC)
-#   seuratDataSC <- RenameIdents(seuratDataSC, new.cluster.ids)
+#   names(new.cluster.ids) <- levels(seuratData)
+#   seuratData <- RenameIdents(seuratData, new.cluster.ids)
 #   DimPlot(pbmc, reduction = "umap", label = TRUE, pt.size = 0.5) + NoLegend()
 
 # otherwise, a you can pull from the "active.ident" field if it's been usefully populated:
-new.cluster.ids <- paste0("CellType", levels(seuratDataSC@active.ident))
-names(x = new.cluster.ids) <- levels(x = seuratDataSC)
-seuratDataSC <- RenameIdents(object = seuratDataSC, new.cluster.ids)
-DimPlot(seuratDataSC, reduction = 'umap', label = TRUE, pt.size = 0.5) + NoLegend()
+new.cluster.ids <- paste0("CellType", levels(seuratData@active.ident))
+names(x = new.cluster.ids) <- levels(x = seuratData)
+seuratData <- RenameIdents(object = seuratData, new.cluster.ids)
+DimPlot(seuratData, reduction = 'umap', label = TRUE, pt.size = 0.5) + NoLegend()
 
 # SUBDIVIDING CLUSTERS WORKFLOW
 #------------------------------
 
-seuratDataSC[["ClusterNames_1.6"]] <- Idents(seuratDataSC) # stash current cluster names
-seuratDataSC <- FindClusters(seuratDataSC, resolution = 2.0) # rerun clustering
-plot1 <- DimPlot(seuratDataSC, reduction = "umap", label = TRUE) + NoLegend()
-plot2 <- DimPlot(seuratDataSC, reduction = "umap", group.by = "ClusterNames_1.6", label = TRUE) + NoLegend()
+seuratData[["ClusterNames_0.6"]] <- Idents(seuratData) # stash current cluster names
+seuratData <- FindClusters(seuratData, resolution = 0.8) # rerun clustering
+plot1 <- DimPlot(seuratData, reduction = "tsne", label = TRUE) + NoLegend()
+plot2 <- DimPlot(seuratData, reduction = "tsne", group.by = "ClusterNames_0.6", label = TRUE) + NoLegend()
 
 # patchwork system
 plot1 + plot2
 
 # observe which group split, and can then find markers differentiating it. e.g. assuming group 0 split into new groups 0 and 1:
-cell.markers <- FindMarkers(seuratDataSC, ident.1 = 0, ident.2 = 1)
-FeaturePlot(seuratDataSC, features = c("S100A4", "CCR7"), cols = c("green", "blue"))
+cell.markers <- FindMarkers(seuratData, ident.1 = 0, ident.2 = 1)
+FeaturePlot(seuratData, features = c("S100A4", "CCR7"), cols = c("green", "blue"))
 
 # DIFFERENTIAL EXPRESSION
 #------------------------
 
 # Alternative analyses
 # Differential expression using t-test
-FindMarkers(seuratDataSC, ident.1 = 0, ident.2 = 1, test.use = "t") # might have to use "CellType0" if you've done the new cluster id step
+FindMarkers(seuratData, ident.1 = 0, ident.2 = 1, test.use = "t") # might have to use "CellType0" if you've done the new cluster id step
 
 # Differential expression using ROC
-FindMarkers(seuratDataSC, ident.1 = 3, test.use = "roc", only.pos = TRUE) # roc returns classification power from 0-1 for each individual marker
+FindMarkers(seuratData, ident.1 = 3, test.use = "roc", only.pos = TRUE) # roc returns classification power from 0-1 for each individual marker
 
+
+# COMPREHENSIVE INTEGRATION
+#---------------------------
+# see also https://satijalab.org/seurat/archive/v3.0/integration.html#standard-workflow
+# must use log-normalized RNA data, not SCTransformed
+
+# Assign the test object a three level attribute
+groups <- sample(c("train", "test"), size = NROW(seuratData@meta.data), replace = TRUE, prob = c(0.8, 0.2))
+names(groups) <- colnames(seuratData)
+seuratData <- AddMetaData(seuratData, metadata = groups, col.name = "group")
+
+# Find Anchors
+seuratData.list <- SplitObject(seuratData, split.by = "group")
+seuratData.anchors <- FindIntegrationAnchors(seuratData.list, dims = 1:30)
+
+seuratData.integrated <- IntegrateData(seuratData.anchors, dims = 1:30)
+seuratData.query <- seuratData.list[["train"]]
+seuratData.anchors <- FindTransferAnchors(seuratData.integrated, query = seuratData.query, dims = 1:30)
