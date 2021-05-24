@@ -4,6 +4,7 @@ library(gdata)
 library(patchwork)
 library(sctransform)
 library(Seurat)
+library(ggplot2)
 
 # PREAMBLE
 #----------
@@ -231,6 +232,11 @@ seuratData <- readRDS(file = paste0(datadir,"output/seuratData_tutorial.rds")) #
 
 # DIFFERENTIALLY EXPRESSED FEATURES / CLUSTER BIOMARKERS
 #--------------------------------------------------------
+# https://satijalab.org/seurat/articles/pbmc3k_tutorial.html#finding-differentially-expressed-features-cluster-biomarkers-
+# Seurat can help you find markers that define clusters via differential expression.
+# By default, it identifies positive and negative markers of a single cluster (specified in ident.1),
+# compared to all other cells. FindAllMarkers() automates this process for all clusters,
+# but you can also test groups of clusters vs. each other, or against all cells.
 
 cluster1.markers <- FindMarkers(seuratData, ident.1 = 1, min.pct = 0.1) # cluster to ID is ident.1 (to do all clusters, use FindAllMarkers instead). Min.pct is detection threshold, thresh.test is to require differential expression amount between two groups. Finally, max.cells.per.ident can speed computation for a small loss in power
 head(cluster1.markers)
@@ -251,7 +257,17 @@ top10bycluster <- nsclc.markers %>% group_by(cluster) %>% top_n(10, avg_log2FC)
 
 VlnPlot(seuratData, features = c("MS4A1", "CD79A"))
 VlnPlot(seuratData, features = c("NKG7", "PF4"), log = TRUE)
+vp = VlnPlot(seuratData, features = c("MS4A1", "CD3E", "LYZ", "NKG7", "JCHAIN", "SPP1"))
+vp = vp + theme(axis.title = element_blank(), axis.text = element_blank())
+vp$patches$plots <- lapply(vp$patches$plots, function (x) {x + theme(axis.title = element_blank(), axis.text = element_blank())})
+vp
 FeaturePlot(seuratData, features = c("MS4A1", "GNLY", "CD3E", "CD14", "FCER1A", "FCGR3A", "LYZ", "PPBP", "CD8A"), cols = c("grey", "blue"), reduction = "tsne")
+FeaturePlot(seuratData, features = c("SPP1", "IGHA1", "IGLC2", "HLA-DQB2", "APOE", "S100A7", "S100B", "IGHG1", "APOC1"), cols = c("grey", "blue"), reduction = "tsne")
+fp = FeaturePlot(seuratData, features = c("MS4A1", "CD3E", "LYZ", "NKG7", "JCHAIN", "SPP1"), cols = c("grey", "blue"), reduction = "tsne", ncol = 3, label = FALSE)
+fp = fp + theme(axis.title = element_blank(), axis.text = element_blank(), legend.position = "none")
+fp$patches$plots <- lapply(fp$patches$plots, function (x) {x + theme(axis.title = element_blank(), axis.text = element_blank(), legend.position = "none")})
+fp
+
 DoHeatmap(seuratData, features = top10bycluster$gene, label = TRUE, size = 3)
 
 # RENAMING CLUSTERS
