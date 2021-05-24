@@ -1,9 +1,9 @@
-library(Seurat)
 library(dplyr)
 library(Matrix)
 library(gdata)
 library(patchwork)
 library(sctransform)
+library(Seurat)
 
 # PREAMBLE
 #----------
